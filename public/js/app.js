@@ -1,29 +1,25 @@
-// Even an Ayah - Main Application Logic
+// Even an Ayah - AI-Native Quran Learning Assistant
 
 class EvenAnAyah {
   constructor() {
-    // App State
     this.state = {
-      currentScreen: 'welcome',
+      currentView: 'welcome',
+      surahs: [],
       currentSurah: null,
       currentAyah: 1,
-      currentStage: 1,
-      surahs: [],
+      surahAyahs: [],
       ayahData: null,
-      audioData: null,
-      writtenImage: null,
-      memoryWrittenImage: null,
+      currentStage: 0, // 0 = not started
       isRecording: false,
       mediaRecorder: null,
       audioChunks: [],
-      canvasHistory: [],
-      memoryCanvasHistory: [],
+      uploadedImage: null,
+      keyboardText: '',
       settings: {
         reciter: 'ar.alafasy',
         translation: 'en.sahih',
-        fontSize: 28,
-        darkMode: false,
-        autoPlayAudio: false
+        fontSize: 32,
+        darkMode: false
       },
       progress: {
         ayahsLearned: 0,
@@ -33,10 +29,15 @@ class EvenAnAyah {
       }
     };
 
-    // DOM Elements
-    this.elements = {};
+    this.stages = [
+      { id: 1, name: 'listen', title: 'Listen & Memorize by Tongue' },
+      { id: 2, name: 'write', title: 'Write Without Harakat' },
+      { id: 3, name: 'read', title: 'Read from Your Writing' },
+      { id: 4, name: 'memory', title: 'Write from Memory' },
+      { id: 5, name: 'harakat', title: 'Add Harakat' },
+      { id: 6, name: 'final', title: 'Final Recitation & Word Study' }
+    ];
 
-    // Initialize
     this.init();
   }
 
@@ -47,151 +48,80 @@ class EvenAnAyah {
     this.bindEvents();
     this.applySettings();
     await this.loadSurahs();
+    this.addWelcomeMessage();
   }
 
   cacheElements() {
-    // Screens
-    this.elements.welcomeScreen = document.getElementById('welcomeScreen');
-    this.elements.surahSelectScreen = document.getElementById('surahSelectScreen');
-    this.elements.ayahSelectScreen = document.getElementById('ayahSelectScreen');
-    this.elements.learningScreen = document.getElementById('learningScreen');
-    this.elements.progressScreen = document.getElementById('progressScreen');
-    this.elements.settingsScreen = document.getElementById('settingsScreen');
-    this.elements.aboutScreen = document.getElementById('aboutScreen');
+    // Views
+    this.elements = {
+      quranWelcome: document.getElementById('quranWelcome'),
+      surahListView: document.getElementById('surahListView'),
+      quranPageView: document.getElementById('quranPageView'),
+      progressView: document.getElementById('progressView'),
+      surahList: document.getElementById('surahList'),
+      surahSearch: document.getElementById('surahSearch'),
+      ayahsContainer: document.getElementById('ayahsContainer'),
+      quranPanelTitle: document.getElementById('quranPanelTitle'),
+      surahTitleDisplay: document.getElementById('surahTitleDisplay'),
+      pageBismillah: document.getElementById('pageBismillah'),
+      zoomOverlay: document.getElementById('zoomOverlay'),
+      focusedAyah: document.getElementById('focusedAyah'),
 
-    // Menu
-    this.elements.menuBtn = document.getElementById('menuBtn');
-    this.elements.sideMenu = document.getElementById('sideMenu');
-    this.elements.closeMenuBtn = document.getElementById('closeMenuBtn');
-    this.elements.menuOverlay = document.getElementById('menuOverlay');
+      // Chat
+      chatMessages: document.getElementById('chatMessages'),
+      actionButtons: document.getElementById('actionButtons'),
+      aiStatus: document.getElementById('aiStatus'),
 
-    // Surah Selection
-    this.elements.surahList = document.getElementById('surahList');
-    this.elements.surahSearch = document.getElementById('surahSearch');
-    this.elements.selectedSurahName = document.getElementById('selectedSurahName');
-    this.elements.totalAyahs = document.getElementById('totalAyahs');
-    this.elements.surahProgress = document.getElementById('surahProgress');
-    this.elements.surahTotal = document.getElementById('surahTotal');
-    this.elements.ayahNumber = document.getElementById('ayahNumber');
+      // Modals
+      settingsModal: document.getElementById('settingsModal'),
+      uploadModal: document.getElementById('uploadModal'),
+      arabicKeyboardModal: document.getElementById('arabicKeyboardModal'),
+      uploadArea: document.getElementById('uploadArea'),
+      uploadPreview: document.getElementById('uploadPreview'),
+      previewImage: document.getElementById('previewImage'),
+      keyboardOutput: document.getElementById('keyboardOutput'),
 
-    // Learning Screen
-    this.elements.currentSurahAyah = document.getElementById('currentSurahAyah');
-    this.elements.wordByWord = document.getElementById('wordByWord');
-    this.elements.translationText = document.getElementById('translationText');
-    this.elements.audioPlayer = document.getElementById('audioPlayer');
+      // Settings
+      reciterSelect: document.getElementById('reciterSelect'),
+      translationSelect: document.getElementById('translationSelect'),
+      fontSizeRange: document.getElementById('fontSizeRange'),
+      fontSizeValue: document.getElementById('fontSizeValue'),
+      darkModeToggle: document.getElementById('darkModeToggle'),
 
-    // Canvases
-    this.elements.writingCanvas = document.getElementById('writingCanvas');
-    this.elements.memoryCanvas = document.getElementById('memoryCanvas');
+      // Audio
+      audioPlayer: document.getElementById('audioPlayer'),
 
-    // Settings
-    this.elements.reciterSelect = document.getElementById('reciterSelect');
-    this.elements.translationSelect = document.getElementById('translationSelect');
-    this.elements.fontSizeRange = document.getElementById('fontSizeRange');
-    this.elements.fontSizeValue = document.getElementById('fontSizeValue');
-    this.elements.darkModeToggle = document.getElementById('darkModeToggle');
-    this.elements.autoPlayAudio = document.getElementById('autoPlayAudio');
-
-    // Loading
-    this.elements.loadingOverlay = document.getElementById('loadingOverlay');
-    this.elements.loadingText = document.getElementById('loadingText');
-    this.elements.toastContainer = document.getElementById('toastContainer');
+      // Loading
+      loadingOverlay: document.getElementById('loadingOverlay'),
+      loadingText: document.getElementById('loadingText'),
+      toastContainer: document.getElementById('toastContainer')
+    };
   }
 
   bindEvents() {
-    // Menu Events
-    this.elements.menuBtn.addEventListener('click', () => this.openMenu());
-    this.elements.closeMenuBtn.addEventListener('click', () => this.closeMenu());
-    this.elements.menuOverlay.addEventListener('click', () => this.closeMenu());
+    // Menu
+    document.getElementById('menuBtn').addEventListener('click', () => this.openMenu());
+    document.getElementById('closeMenuBtn').addEventListener('click', () => this.closeMenu());
+    document.getElementById('menuOverlay').addEventListener('click', () => this.closeMenu());
 
-    // Menu Navigation
     document.querySelectorAll('.menu-list a').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
-        const action = e.target.dataset.action;
-        this.handleMenuAction(action);
+        this.handleMenuAction(e.target.dataset.action);
         this.closeMenu();
       });
     });
 
-    // Welcome Screen
-    document.getElementById('startBtn').addEventListener('click', () => {
-      this.showScreen('surahSelect');
-    });
+    // Welcome
+    document.getElementById('selectSurahBtn').addEventListener('click', () => this.showSurahList());
 
-    // Surah Selection
-    this.elements.surahSearch.addEventListener('input', (e) => {
-      this.filterSurahs(e.target.value);
-    });
+    // Surah search
+    this.elements.surahSearch.addEventListener('input', (e) => this.filterSurahs(e.target.value));
 
-    // Ayah Selection
-    document.getElementById('backToSurahBtn').addEventListener('click', () => {
-      this.showScreen('surahSelect');
-    });
+    // Settings
+    document.getElementById('settingsBtn').addEventListener('click', () => this.openModal('settingsModal'));
+    document.getElementById('closeSettingsBtn').addEventListener('click', () => this.closeModal('settingsModal'));
 
-    document.getElementById('startAyahBtn').addEventListener('click', () => {
-      const ayahNum = parseInt(this.elements.ayahNumber.value);
-      if (ayahNum >= 1 && ayahNum <= this.state.currentSurah.numberOfAyahs) {
-        this.state.currentAyah = ayahNum;
-        this.startLearning();
-      } else {
-        this.showToast('Invalid ayah number', 'error');
-      }
-    });
-
-    // Stage 1 - Listen & Memorize
-    document.getElementById('playAudioBtn').addEventListener('click', () => this.playAudio());
-    document.getElementById('repeatAudioBtn').addEventListener('click', () => this.repeatAudio());
-    document.getElementById('recordBtn').addEventListener('click', () => this.toggleRecording('recordBtn', 'recordingStatus'));
-    document.getElementById('stage1CompleteBtn').addEventListener('click', () => this.completeStage(1));
-
-    // Stage 2 - Write Without Harakat
-    document.getElementById('toggleReferenceBtn').addEventListener('click', () => {
-      this.toggleElement('referenceText', 'toggleReferenceBtn');
-    });
-    document.getElementById('clearCanvasBtn').addEventListener('click', () => this.clearCanvas('writingCanvas'));
-    document.getElementById('undoCanvasBtn').addEventListener('click', () => this.undoCanvas('writingCanvas'));
-    document.getElementById('stage2CompleteBtn').addEventListener('click', () => this.completeStage(2));
-
-    // Stage 3 - Read from Handwriting
-    document.getElementById('toggleReference2Btn').addEventListener('click', () => {
-      this.toggleElement('referenceText2', 'toggleReference2Btn');
-    });
-    document.getElementById('recordBtn2').addEventListener('click', () => this.toggleRecording('recordBtn2', 'recordingStatus2'));
-    document.getElementById('stage3CompleteBtn').addEventListener('click', () => this.completeStage(3));
-
-    // Stage 4 - Write from Memory
-    document.getElementById('clearMemoryCanvasBtn').addEventListener('click', () => this.clearCanvas('memoryCanvas'));
-    document.getElementById('undoMemoryCanvasBtn').addEventListener('click', () => this.undoCanvas('memoryCanvas'));
-    document.getElementById('stage4CompleteBtn').addEventListener('click', () => this.completeStage(4));
-
-    // Stage 5 - Add Harakat
-    document.getElementById('toggleReference3Btn').addEventListener('click', () => {
-      this.toggleElement('referenceText3', 'toggleReference3Btn');
-    });
-
-    // Harakat Keyboard
-    document.querySelectorAll('.harakat-key').forEach(key => {
-      key.addEventListener('click', (e) => {
-        const char = e.target.dataset.char;
-        const input = document.getElementById('harakatInput');
-        const pos = input.selectionStart;
-        input.value = input.value.slice(0, pos) + char + input.value.slice(pos);
-        input.focus();
-        input.setSelectionRange(pos + 1, pos + 1);
-      });
-    });
-
-    document.getElementById('stage5CompleteBtn').addEventListener('click', () => this.completeStage(5));
-
-    // Stage 6 - Final Recitation & Root Words
-    document.getElementById('recordBtn3').addEventListener('click', () => this.toggleRecording('recordBtn3', 'recordingStatus3'));
-    document.getElementById('confirmUnderstanding').addEventListener('change', (e) => {
-      document.getElementById('completeAyahBtn').disabled = !e.target.checked;
-    });
-    document.getElementById('completeAyahBtn').addEventListener('click', () => this.completeAyah());
-
-    // Settings Events
     this.elements.reciterSelect.addEventListener('change', (e) => {
       this.state.settings.reciter = e.target.value;
       this.saveSettings();
@@ -215,168 +145,275 @@ class EvenAnAyah {
       this.saveSettings();
     });
 
-    this.elements.autoPlayAudio.addEventListener('change', (e) => {
-      this.state.settings.autoPlayAudio = e.target.checked;
-      this.saveSettings();
-    });
-
     document.getElementById('resetProgressBtn').addEventListener('click', () => {
-      if (confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
-        this.resetProgress();
+      if (confirm('Reset all progress?')) this.resetProgress();
+    });
+
+    // Upload Modal
+    document.getElementById('closeUploadBtn').addEventListener('click', () => this.closeModal('uploadModal'));
+    document.getElementById('imageUpload').addEventListener('change', (e) => this.handleImageUpload(e));
+    document.getElementById('retakeBtn').addEventListener('click', () => this.resetUpload());
+    document.getElementById('submitImageBtn').addEventListener('click', () => this.submitImage());
+
+    // Drag and drop
+    this.elements.uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      this.elements.uploadArea.classList.add('dragover');
+    });
+    this.elements.uploadArea.addEventListener('dragleave', () => {
+      this.elements.uploadArea.classList.remove('dragover');
+    });
+    this.elements.uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      this.elements.uploadArea.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        this.processUploadedFile(e.dataTransfer.files[0]);
       }
     });
 
-    // Canvas Drawing
-    this.setupCanvas('writingCanvas', 'canvasHistory');
-    this.setupCanvas('memoryCanvas', 'memoryCanvasHistory');
+    // Arabic Keyboard Modal
+    document.getElementById('closeKeyboardBtn').addEventListener('click', () => this.closeModal('arabicKeyboardModal'));
+    document.getElementById('keyboardCancelBtn').addEventListener('click', () => this.closeModal('arabicKeyboardModal'));
+    document.getElementById('keyboardSubmitBtn').addEventListener('click', () => this.submitKeyboardText());
+    document.getElementById('keyboardBackspace').addEventListener('click', () => this.keyboardBackspace());
+    document.getElementById('keyboardClear').addEventListener('click', () => this.keyboardClear());
 
-    // Hint Button
-    document.getElementById('showHintBtn').addEventListener('click', () => {
-      this.showToast('Keep practicing! You can do this! 💪', 'info');
+    document.querySelectorAll('#arabicKeyboard .key[data-char]').forEach(key => {
+      key.addEventListener('click', (e) => {
+        const char = e.target.dataset.char;
+        this.state.keyboardText += char;
+        this.elements.keyboardOutput.textContent = this.state.keyboardText;
+      });
+    });
+
+    // Zoom controls
+    document.getElementById('zoomInBtn').addEventListener('click', () => this.adjustFontSize(4));
+    document.getElementById('zoomOutBtn').addEventListener('click', () => this.adjustFontSize(-4));
+    document.getElementById('fullPageBtn').addEventListener('click', () => this.toggleZoom());
+
+    // Click on zoom overlay to close
+    this.elements.zoomOverlay.addEventListener('click', (e) => {
+      if (e.target === this.elements.zoomOverlay) this.closeZoom();
     });
   }
 
-  setupCanvas(canvasId, historyKey) {
-    const canvas = document.getElementById(canvasId);
-    const ctx = canvas.getContext('2d');
-    let isDrawing = false;
-    let lastX = 0;
-    let lastY = 0;
+  // === CHAT INTERFACE ===
 
-    // Set canvas size
-    const resizeCanvas = () => {
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-    };
+  addMessage(sender, content, actions = []) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}`;
 
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    const avatar = sender === 'ai' ? '🤖' : '👤';
+    const avatarDiv = `<div class="message-avatar">${avatar}</div>`;
 
-    const getCoordinates = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      if (e.touches) {
-        return {
-          x: e.touches[0].clientX - rect.left,
-          y: e.touches[0].clientY - rect.top
-        };
-      }
-      return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
-    };
+    let actionsHTML = '';
+    if (actions.length > 0) {
+      actionsHTML = '<div class="message-actions">' +
+        actions.map(action => `<button class="message-btn ${action.class || ''}" data-action="${action.action}">${action.label}</button>`).join('') +
+        '</div>';
+    }
 
-    const startDrawing = (e) => {
-      e.preventDefault();
-      isDrawing = true;
-      const coords = getCoordinates(e);
-      lastX = coords.x;
-      lastY = coords.y;
+    messageDiv.innerHTML = `
+      ${avatarDiv}
+      <div class="message-content">
+        <div class="message-text">${content}</div>
+        ${actionsHTML}
+      </div>
+    `;
 
-      // Save state for undo
-      this.state[historyKey].push(canvas.toDataURL());
-    };
+    this.elements.chatMessages.appendChild(messageDiv);
 
-    const draw = (e) => {
-      if (!isDrawing) return;
-      e.preventDefault();
+    // Bind action buttons
+    messageDiv.querySelectorAll('.message-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.handleMessageAction(btn.dataset.action));
+    });
 
-      const coords = getCoordinates(e);
-      const penColor = document.getElementById('penColor').value;
-      const penSize = document.getElementById('penSize').value;
-
-      ctx.strokeStyle = penColor;
-      ctx.lineWidth = penSize;
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(coords.x, coords.y);
-      ctx.stroke();
-
-      lastX = coords.x;
-      lastY = coords.y;
-    };
-
-    const stopDrawing = () => {
-      isDrawing = false;
-    };
-
-    // Mouse events
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
-
-    // Touch events
-    canvas.addEventListener('touchstart', startDrawing, { passive: false });
-    canvas.addEventListener('touchmove', draw, { passive: false });
-    canvas.addEventListener('touchend', stopDrawing);
+    this.scrollChatToBottom();
   }
 
-  clearCanvas(canvasId) {
-    const canvas = document.getElementById(canvasId);
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  addUserMessage(content) {
+    this.addMessage('user', content);
   }
 
-  undoCanvas(canvasId) {
-    const historyKey = canvasId === 'writingCanvas' ? 'canvasHistory' : 'memoryCanvasHistory';
-    const history = this.state[historyKey];
+  addAIMessage(content, actions = []) {
+    this.setAIStatus('Thinking...');
+    setTimeout(() => {
+      this.addMessage('ai', content, actions);
+      this.setAIStatus('Ready to help');
+    }, 500);
+  }
 
-    if (history.length > 0) {
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
+  showTypingIndicator() {
+    const typing = document.createElement('div');
+    typing.className = 'chat-message ai';
+    typing.id = 'typingIndicator';
+    typing.innerHTML = `
+      <div class="message-avatar">🤖</div>
+      <div class="message-content">
+        <div class="typing-indicator">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    `;
+    this.elements.chatMessages.appendChild(typing);
+    this.scrollChatToBottom();
+  }
 
-      img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
-      };
+  hideTypingIndicator() {
+    const typing = document.getElementById('typingIndicator');
+    if (typing) typing.remove();
+  }
 
-      img.src = history.pop();
+  scrollChatToBottom() {
+    this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+  }
+
+  setAIStatus(status) {
+    this.elements.aiStatus.textContent = status;
+  }
+
+  updateActionButtons(buttons) {
+    this.elements.actionButtons.innerHTML = buttons.map(btn => `
+      <button class="action-btn ${btn.class || ''}" data-action="${btn.action}">
+        ${btn.icon || ''} ${btn.label}
+      </button>
+    `).join('');
+
+    this.elements.actionButtons.querySelectorAll('.action-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.handleActionButton(btn.dataset.action));
+    });
+  }
+
+  handleActionButton(action) {
+    switch (action) {
+      case 'play-audio':
+        this.playAudio();
+        this.addUserMessage('Playing audio recitation');
+        break;
+      case 'repeat-audio':
+        this.repeatAudio();
+        this.addUserMessage('Repeating audio');
+        break;
+      case 'record':
+        this.toggleRecording();
+        break;
+      case 'confirm-memorized':
+        this.confirmStageComplete();
+        break;
+      case 'upload-image':
+        this.openModal('uploadModal');
+        break;
+      case 'open-keyboard':
+        this.openArabicKeyboard();
+        break;
+      case 'show-reference':
+        this.showReference();
+        break;
+      case 'confirm-understanding':
+        this.confirmUnderstanding();
+        break;
+      case 'next-ayah':
+        this.completeAyah();
+        break;
     }
   }
 
+  handleMessageAction(action) {
+    this.handleActionButton(action);
+  }
+
+  // === WELCOME & NAVIGATION ===
+
+  addWelcomeMessage() {
+    const welcomeContent = `
+      <strong>Assalamu Alaikum!</strong> 🌟<br><br>
+      I'm your Quran learning assistant. I'll guide you through memorizing the Quran one ayah at a time using a proven method:<br><br>
+      1️⃣ <strong>Listen & repeat</strong> until fluent<br>
+      2️⃣ <strong>Write</strong> without vowel marks<br>
+      3️⃣ <strong>Read</strong> from your handwriting<br>
+      4️⃣ <strong>Write from memory</strong><br>
+      5️⃣ <strong>Add harakat</strong> (vowels)<br>
+      6️⃣ <strong>Learn root words</strong> & meanings<br><br>
+      Let's begin your journey! Select a surah from the left panel.
+    `;
+
+    this.addAIMessage(welcomeContent, [
+      { label: '📖 Select Surah', action: 'select-surah' }
+    ]);
+
+    this.updateActionButtons([
+      { label: 'Select Surah', icon: '📖', action: 'select-surah' }
+    ]);
+
+    // Bind select surah action
+    setTimeout(() => {
+      document.querySelectorAll('[data-action="select-surah"]').forEach(btn => {
+        btn.addEventListener('click', () => this.showSurahList());
+      });
+    }, 600);
+  }
+
+  handleMenuAction(action) {
+    switch (action) {
+      case 'home':
+        this.showView('quranWelcome');
+        this.addAIMessage('Back to home. Ready to continue learning?', [
+          { label: '📖 Select Surah', action: 'select-surah' }
+        ]);
+        break;
+      case 'select-surah':
+        this.showSurahList();
+        break;
+      case 'progress':
+        this.showProgressView();
+        break;
+      case 'settings':
+        this.openModal('settingsModal');
+        break;
+      case 'about':
+        this.showAbout();
+        break;
+    }
+  }
+
+  showView(viewName) {
+    document.querySelectorAll('.quran-content-view').forEach(view => view.classList.remove('active'));
+    document.getElementById(viewName).classList.add('active');
+    this.state.currentView = viewName;
+  }
+
+  // === SURAH SELECTION ===
+
   async loadSurahs() {
-    this.showLoading('Loading Surahs...');
+    this.showLoading('Loading Quran data...');
     try {
       const response = await fetch('/api/surahs');
       const data = await response.json();
-
       if (data.data) {
         this.state.surahs = data.data;
         this.renderSurahList();
       }
     } catch (error) {
       console.error('Failed to load surahs:', error);
-      this.showToast('Failed to load surahs. Please try again.', 'error');
+      this.showToast('Failed to load surahs', 'error');
     }
     this.hideLoading();
   }
 
   renderSurahList() {
-    const html = this.state.surahs.map(surah => `
+    this.elements.surahList.innerHTML = this.state.surahs.map(surah => `
       <div class="surah-card" data-surah="${surah.number}">
         <div class="surah-number">${surah.number}</div>
         <div class="surah-info">
           <div class="surah-name-arabic">${surah.name}</div>
           <div class="surah-name-english">${surah.englishName}</div>
-          <div class="surah-meta">${surah.numberOfAyahs} Ayahs • ${surah.revelationType}</div>
+          <div class="surah-meta">${surah.numberOfAyahs} Ayahs</div>
         </div>
       </div>
     `).join('');
 
-    this.elements.surahList.innerHTML = html;
-
-    // Add click events
     document.querySelectorAll('.surah-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        const surahNum = parseInt(card.dataset.surah);
-        this.selectSurah(surahNum);
-      });
+      card.addEventListener('click', () => this.selectSurah(parseInt(card.dataset.surah)));
     });
   }
 
@@ -387,37 +424,99 @@ class EvenAnAyah {
     cards.forEach(card => {
       const surahNum = parseInt(card.dataset.surah);
       const surah = this.state.surahs.find(s => s.number === surahNum);
-
       const matches = surah.name.includes(query) ||
                       surah.englishName.toLowerCase().includes(lowerQuery) ||
-                      surah.englishNameTranslation.toLowerCase().includes(lowerQuery) ||
                       surah.number.toString() === query;
-
       card.style.display = matches ? 'flex' : 'none';
     });
   }
 
-  selectSurah(surahNum) {
-    this.state.currentSurah = this.state.surahs.find(s => s.number === surahNum);
-
-    // Update ayah selection screen
-    this.elements.selectedSurahName.textContent = `${this.state.currentSurah.englishName} (${this.state.currentSurah.name})`;
-    this.elements.totalAyahs.textContent = this.state.currentSurah.numberOfAyahs;
-    this.elements.surahTotal.textContent = this.state.currentSurah.numberOfAyahs;
-    this.elements.ayahNumber.max = this.state.currentSurah.numberOfAyahs;
-
-    // Load progress
-    const progress = this.state.progress.surahProgress[surahNum] || 0;
-    this.elements.surahProgress.textContent = progress;
-
-    // Set starting ayah to next unlearned
-    this.elements.ayahNumber.value = Math.min(progress + 1, this.state.currentSurah.numberOfAyahs);
-
-    this.showScreen('ayahSelect');
+  showSurahList() {
+    this.showView('surahListView');
+    this.addAIMessage('Please select a surah to begin memorizing. You can search by name or number.');
+    this.updateActionButtons([]);
   }
 
-  async startLearning() {
-    this.showLoading('Loading Ayah...');
+  async selectSurah(surahNum) {
+    this.showLoading('Loading surah...');
+    this.state.currentSurah = this.state.surahs.find(s => s.number === surahNum);
+
+    try {
+      // Load entire surah
+      const response = await fetch(`/api/surah/${surahNum}?edition=quran-uthmani`);
+      const data = await response.json();
+
+      if (data.data) {
+        this.state.surahAyahs = data.data.ayahs;
+        this.renderQuranPage();
+
+        // Determine starting ayah
+        const progress = this.state.progress.surahProgress[surahNum] || 0;
+        this.state.currentAyah = Math.min(progress + 1, this.state.currentSurah.numberOfAyahs);
+
+        this.showView('quranPageView');
+        this.elements.quranPanelTitle.textContent = this.state.currentSurah.name;
+
+        this.addUserMessage(`Selected Surah ${this.state.currentSurah.englishName}`);
+
+        const aiMessage = `Excellent choice! <strong>Surah ${this.state.currentSurah.englishName}</strong> (${this.state.currentSurah.name}) has ${this.state.currentSurah.numberOfAyahs} ayahs.<br><br>`;
+
+        if (progress > 0) {
+          this.addAIMessage(aiMessage + `You've memorized ${progress} ayahs already. Let's continue with ayah ${this.state.currentAyah}. Ready to begin?`, [
+            { label: 'Start Ayah ' + this.state.currentAyah, action: 'start-learning', class: 'success' }
+          ]);
+        } else {
+          this.addAIMessage(aiMessage + `Let's start from the beginning. Ready to learn ayah 1?`, [
+            { label: 'Start Learning', action: 'start-learning', class: 'success' }
+          ]);
+        }
+
+        this.updateActionButtons([
+          { label: 'Start Learning', icon: '▶️', action: 'start-learning' }
+        ]);
+
+        // Bind start learning
+        setTimeout(() => {
+          document.querySelectorAll('[data-action="start-learning"]').forEach(btn => {
+            btn.addEventListener('click', () => this.startLearningAyah());
+          });
+        }, 600);
+      }
+    } catch (error) {
+      console.error('Failed to load surah:', error);
+      this.showToast('Failed to load surah', 'error');
+    }
+
+    this.hideLoading();
+  }
+
+  renderQuranPage() {
+    // Update title
+    this.elements.surahTitleDisplay.querySelector('.surah-name-ar').textContent = this.state.currentSurah.name;
+    this.elements.surahTitleDisplay.querySelector('.surah-name-en').textContent = this.state.currentSurah.englishName;
+
+    // Show/hide bismillah (not for Surah 9)
+    this.elements.pageBismillah.style.display = this.state.currentSurah.number === 9 ? 'none' : 'block';
+
+    // Render ayahs
+    let html = '';
+    this.state.surahAyahs.forEach(ayah => {
+      const ayahNum = ayah.numberInSurah;
+      const progress = this.state.progress.surahProgress[this.state.currentSurah.number] || 0;
+      let classes = 'ayah-text';
+      if (ayahNum <= progress) classes += ' learned';
+
+      html += `<span class="${classes}" data-ayah="${ayahNum}">${ayah.text}</span>`;
+      html += `<span class="ayah-number">${ayahNum}</span> `;
+    });
+
+    this.elements.ayahsContainer.innerHTML = html;
+  }
+
+  // === LEARNING FLOW ===
+
+  async startLearningAyah() {
+    this.showLoading('Loading ayah...');
 
     try {
       const ref = `${this.state.currentSurah.number}:${this.state.currentAyah}`;
@@ -428,7 +527,6 @@ class EvenAnAyah {
 
       if (ayahData.data) {
         this.state.ayahData = ayahData.data;
-        this.setupLearningScreen();
       }
 
       // Fetch audio
@@ -436,86 +534,93 @@ class EvenAnAyah {
       const audioData = await audioResponse.json();
 
       if (audioData.data) {
-        this.state.audioData = audioData.data;
         this.elements.audioPlayer.src = audioData.data.audio;
       }
 
-      this.showScreen('learning');
-      this.state.currentStage = 1;
-      this.updateStageUI();
+      // Highlight current ayah and zoom in
+      this.highlightCurrentAyah();
+      this.zoomToAyah();
 
-      if (this.state.settings.autoPlayAudio) {
-        setTimeout(() => this.playAudio(), 1000);
-      }
+      // Start stage 1
+      this.state.currentStage = 1;
+      this.startStage1();
+
     } catch (error) {
       console.error('Failed to load ayah:', error);
-      this.showToast('Failed to load ayah. Please try again.', 'error');
+      this.showToast('Failed to load ayah', 'error');
     }
 
     this.hideLoading();
   }
 
-  setupLearningScreen() {
-    const arabicText = this.state.ayahData[0].text;
-    const translationText = this.state.ayahData[1] ? this.state.ayahData[1].text : '';
-
-    // Update header
-    this.elements.currentSurahAyah.textContent = `${this.state.currentSurah.englishName} ${this.state.currentSurah.number}:${this.state.currentAyah}`;
-
-    // Display word by word
-    const words = arabicText.split(' ');
-    this.elements.wordByWord.innerHTML = words.map((word, i) =>
-      `<span class="word" data-index="${i}">${word}</span>`
-    ).join('');
-
-    // Add click events to words
-    document.querySelectorAll('.word').forEach(wordEl => {
-      wordEl.addEventListener('click', (e) => {
-        document.querySelectorAll('.word').forEach(w => w.classList.remove('highlighted'));
-        e.target.classList.add('highlighted');
-      });
+  highlightCurrentAyah() {
+    // Remove previous highlights
+    document.querySelectorAll('.ayah-text').forEach(el => {
+      el.classList.remove('current', 'blurred');
     });
 
-    // Translation
-    this.elements.translationText.textContent = translationText;
-
-    // Reference texts
-    document.getElementById('referenceText').textContent = arabicText;
-    document.getElementById('referenceText2').textContent = arabicText;
-    document.getElementById('referenceText3').textContent = arabicText;
-
-    // Text without harakat for stage 5
-    const textWithoutHarakat = this.removeHarakat(arabicText);
-    document.getElementById('textWithoutHarakat').textContent = textWithoutHarakat;
-
-    // Clear inputs
-    document.getElementById('writtenTextInput').value = '';
-    document.getElementById('memoryTextInput').value = '';
-    document.getElementById('harakatInput').value = '';
-    document.getElementById('confirmUnderstanding').checked = false;
-    document.getElementById('completeAyahBtn').disabled = true;
-
-    // Clear canvases
-    this.clearCanvas('writingCanvas');
-    this.clearCanvas('memoryCanvas');
-    this.state.canvasHistory = [];
-    this.state.memoryCanvasHistory = [];
-
-    // Load root words and tafsir
-    this.loadRootWords(arabicText);
-    this.loadTafsir();
+    // Highlight current
+    const currentEl = document.querySelector(`.ayah-text[data-ayah="${this.state.currentAyah}"]`);
+    if (currentEl) {
+      currentEl.classList.add('current');
+      currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   }
 
-  removeHarakat(text) {
-    // Remove Arabic diacritics/harakat
-    const harakatRegex = /[\u064B-\u065F\u0670]/g;
-    return text.replace(harakatRegex, '');
+  zoomToAyah() {
+    const ayahText = this.state.ayahData[0].text;
+    this.elements.focusedAyah.textContent = ayahText;
+    this.elements.zoomOverlay.classList.add('active');
+  }
+
+  closeZoom() {
+    this.elements.zoomOverlay.classList.remove('active');
+  }
+
+  toggleZoom() {
+    if (this.elements.zoomOverlay.classList.contains('active')) {
+      this.closeZoom();
+    } else if (this.state.ayahData) {
+      this.zoomToAyah();
+    }
+  }
+
+  blurPreviousAyahs() {
+    document.querySelectorAll('.ayah-text').forEach(el => {
+      const ayahNum = parseInt(el.dataset.ayah);
+      if (ayahNum < this.state.currentAyah) {
+        el.classList.add('blurred');
+      }
+    });
+  }
+
+  // === STAGE 1: LISTEN & MEMORIZE ===
+
+  startStage1() {
+    const arabicText = this.state.ayahData[0].text;
+    const translation = this.state.ayahData[1] ? this.state.ayahData[1].text : '';
+
+    this.addAIMessage(`
+      <strong>Stage 1: Listen & Memorize by Tongue</strong> 🎙️<br><br>
+      Here is your ayah (${this.state.currentSurah.englishName} ${this.state.currentSurah.number}:${this.state.currentAyah}):<br>
+      <span class="arabic">${arabicText}</span>
+      <br><strong>Translation:</strong> ${translation}<br><br>
+      Listen to the recitation and repeat it until you can recite fluently without stumbling. When ready, record yourself to verify.
+    `);
+
+    this.updateActionButtons([
+      { label: 'Play Audio', icon: '▶️', action: 'play-audio' },
+      { label: 'Repeat', icon: '🔄', action: 'repeat-audio' },
+      { label: 'Record Myself', icon: '🎤', action: 'record' },
+      { label: "I've Memorized It", icon: '✅', action: 'confirm-memorized' }
+    ]);
   }
 
   playAudio() {
     if (this.elements.audioPlayer.src) {
       this.elements.audioPlayer.currentTime = 0;
       this.elements.audioPlayer.play();
+      this.addAIMessage('Playing recitation... Listen carefully to the pronunciation and tajweed.');
     }
   }
 
@@ -523,243 +628,437 @@ class EvenAnAyah {
     this.playAudio();
   }
 
-  async toggleRecording(btnId, statusId) {
-    const btn = document.getElementById(btnId);
-    const status = document.getElementById(statusId);
-
+  async toggleRecording() {
     if (!this.state.isRecording) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.state.mediaRecorder = new MediaRecorder(stream);
         this.state.audioChunks = [];
 
-        this.state.mediaRecorder.ondataavailable = (e) => {
-          this.state.audioChunks.push(e.data);
-        };
+        this.state.mediaRecorder.ondataavailable = (e) => this.state.audioChunks.push(e.data);
 
         this.state.mediaRecorder.onstop = () => {
           const audioBlob = new Blob(this.state.audioChunks, { type: 'audio/webm' });
-          status.innerHTML = `
-            <audio controls src="${URL.createObjectURL(audioBlob)}"></audio>
-            <p>Recording saved! Listen to check your recitation.</p>
-          `;
+          const audioUrl = URL.createObjectURL(audioBlob);
+
+          this.addAIMessage(`
+            Excellent! Here's your recording:<br>
+            <audio controls src="${audioUrl}"></audio><br><br>
+            Listen to yourself. Does it sound clear and fluent? Compare with the original recitation. If you're satisfied, confirm that you've memorized it.
+          `);
+
           stream.getTracks().forEach(track => track.stop());
         };
 
         this.state.mediaRecorder.start();
         this.state.isRecording = true;
-        btn.textContent = '⏹️ Stop Recording';
-        btn.classList.add('recording');
-        status.textContent = 'Recording... Speak now';
+        this.addUserMessage('Started recording...');
+        this.addAIMessage('Recording now... Recite the ayah clearly. Click "Stop Recording" when done.');
+
+        // Update button to stop
+        this.updateActionButtons([
+          { label: 'Stop Recording', icon: '⏹️', action: 'record', class: 'recording' },
+          { label: "I've Memorized It", icon: '✅', action: 'confirm-memorized' }
+        ]);
+
       } catch (error) {
-        console.error('Recording error:', error);
-        this.showToast('Could not access microphone. Please check permissions.', 'error');
+        this.showToast('Could not access microphone', 'error');
+        this.addAIMessage('Unable to access your microphone. Please check permissions and try again.');
       }
     } else {
       this.state.mediaRecorder.stop();
       this.state.isRecording = false;
-      btn.textContent = '🎤 Start Recording';
-      btn.classList.remove('recording');
+      this.addUserMessage('Stopped recording');
+
+      // Restore buttons
+      this.updateActionButtons([
+        { label: 'Play Audio', icon: '▶️', action: 'play-audio' },
+        { label: 'Record Again', icon: '🎤', action: 'record' },
+        { label: "I've Memorized It", icon: '✅', action: 'confirm-memorized' }
+      ]);
     }
   }
 
-  toggleElement(elementId, btnId) {
-    const element = document.getElementById(elementId);
-    const btn = document.getElementById(btnId);
+  // === STAGE 2: WRITE WITHOUT HARAKAT ===
 
-    if (element.classList.contains('hidden')) {
-      element.classList.remove('hidden');
-      btn.textContent = 'Hide Text';
-    } else {
-      element.classList.add('hidden');
-      btn.textContent = btn.textContent.replace('Hide', 'Show');
+  startStage2() {
+    this.addAIMessage(`
+      <strong>Stage 2: Write Without Harakat (Vowels)</strong> ✍️<br><br>
+      Excellent progress! Now write the ayah <strong>without vowel marks</strong> (no fathah, dammah, kasrah, etc.).<br><br>
+      You can:<br>
+      • 📷 <strong>Upload a photo</strong> of your handwritten text<br>
+      • ⌨️ <strong>Type it</strong> using the Arabic keyboard<br><br>
+      If you need to see the text for reference, click "Show Reference".
+    `, [
+      { label: 'Show Reference', action: 'show-reference', class: 'secondary' }
+    ]);
+
+    this.updateActionButtons([
+      { label: 'Upload Photo', icon: '📷', action: 'upload-image' },
+      { label: 'Type Arabic', icon: '⌨️', action: 'open-keyboard' },
+      { label: 'Show Reference', icon: '👁️', action: 'show-reference' }
+    ]);
+  }
+
+  showReference() {
+    const arabicText = this.state.ayahData[0].text;
+    this.addAIMessage(`
+      Here's the ayah for reference:<br>
+      <span class="arabic">${arabicText}</span><br><br>
+      Study it carefully, then write it without the harakat.
+    `);
+  }
+
+  openArabicKeyboard() {
+    this.state.keyboardText = '';
+    this.elements.keyboardOutput.textContent = '';
+    this.openModal('arabicKeyboardModal');
+  }
+
+  keyboardBackspace() {
+    this.state.keyboardText = this.state.keyboardText.slice(0, -1);
+    this.elements.keyboardOutput.textContent = this.state.keyboardText;
+  }
+
+  keyboardClear() {
+    this.state.keyboardText = '';
+    this.elements.keyboardOutput.textContent = '';
+  }
+
+  submitKeyboardText() {
+    if (!this.state.keyboardText.trim()) {
+      this.showToast('Please type something', 'error');
+      return;
+    }
+
+    const text = this.state.keyboardText;
+    this.closeModal('arabicKeyboardModal');
+    this.addUserMessage(`<span class="arabic">${text}</span>`);
+
+    if (this.state.currentStage === 2) {
+      this.verifyWriting(text);
+    } else if (this.state.currentStage === 4) {
+      this.verifyMemoryWriting(text);
+    } else if (this.state.currentStage === 5) {
+      this.verifyHarakat(text);
     }
   }
 
-  completeStage(stageNum) {
-    // Validate stage completion
-    if (stageNum === 2) {
-      const canvas = document.getElementById('writingCanvas');
-      const textInput = document.getElementById('writtenTextInput').value;
+  handleImageUpload(e) {
+    if (e.target.files.length) {
+      this.processUploadedFile(e.target.files[0]);
+    }
+  }
 
-      if (!textInput && !this.hasDrawing(canvas)) {
-        this.showToast('Please write the ayah either on canvas or in the text field.', 'error');
-        return;
+  processUploadedFile(file) {
+    if (!file.type.startsWith('image/')) {
+      this.showToast('Please upload an image file', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.state.uploadedImage = e.target.result;
+      this.elements.previewImage.src = e.target.result;
+      this.elements.uploadArea.classList.add('hidden');
+      this.elements.uploadPreview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  resetUpload() {
+    this.elements.uploadArea.classList.remove('hidden');
+    this.elements.uploadPreview.classList.add('hidden');
+    this.state.uploadedImage = null;
+    document.getElementById('imageUpload').value = '';
+  }
+
+  submitImage() {
+    if (!this.state.uploadedImage) {
+      this.showToast('No image uploaded', 'error');
+      return;
+    }
+
+    this.closeModal('uploadModal');
+    this.addUserMessage(`<img src="${this.state.uploadedImage}" style="max-width: 200px; border-radius: 8px;">`);
+
+    // AI "analyzes" the image
+    this.showTypingIndicator();
+    setTimeout(() => {
+      this.hideTypingIndicator();
+
+      if (this.state.currentStage === 2) {
+        this.addAIMessage(`
+          Great handwriting! 📝 I can see you've written the ayah without harakat.<br><br>
+          Your writing looks good! The letter forms are clear. Remember, writing by hand helps encode the ayah into your long-term memory.<br><br>
+          Now let's move to the next stage where you'll read from your handwriting.
+        `, [
+          { label: 'Continue to Stage 3', action: 'confirm-memorized', class: 'success' }
+        ]);
+      } else if (this.state.currentStage === 4) {
+        this.addAIMessage(`
+          Excellent memory work! 🧠 You've written the ayah from memory.<br><br>
+          This is a crucial step in cementing the ayah in your memory. Your recall is strengthening!<br><br>
+          Ready to add the harakat (vowel marks)?
+        `, [
+          { label: 'Continue to Stage 5', action: 'confirm-memorized', class: 'success' }
+        ]);
       }
+    }, 1500);
 
-      // Save written content for stage 3
-      if (this.hasDrawing(canvas)) {
-        this.state.writtenImage = canvas.toDataURL();
-        document.getElementById('yourWritingDisplay').innerHTML = `<img src="${this.state.writtenImage}" alt="Your handwriting">`;
+    this.resetUpload();
+  }
+
+  verifyWriting(text) {
+    const correctText = this.removeHarakat(this.state.ayahData[0].text);
+    const similarity = this.calculateSimilarity(this.removeHarakat(text), correctText);
+
+    this.showTypingIndicator();
+    setTimeout(() => {
+      this.hideTypingIndicator();
+
+      if (similarity > 0.85) {
+        this.addAIMessage(`
+          Excellent! ✅ Your writing is very accurate (${Math.round(similarity * 100)}% match).<br><br>
+          You've successfully written the ayah without harakat. This is great practice for understanding the root letters.<br><br>
+          Ready to move to the next stage?
+        `, [
+          { label: 'Continue to Stage 3', action: 'confirm-memorized', class: 'success' }
+        ]);
+      } else if (similarity > 0.6) {
+        this.addAIMessage(`
+          Good attempt! 📝 Your writing is ${Math.round(similarity * 100)}% accurate.<br><br>
+          There are some differences. Would you like to see the reference and try again?
+        `, [
+          { label: 'Show Reference', action: 'show-reference', class: 'secondary' },
+          { label: 'Try Again', action: 'open-keyboard' },
+          { label: 'Continue Anyway', action: 'confirm-memorized' }
+        ]);
       } else {
-        document.getElementById('yourWritingDisplay').innerHTML = `<p class="arabic-display">${textInput}</p>`;
+        this.addAIMessage(`
+          Let's try again. 🔄 The text doesn't quite match yet.<br><br>
+          Here's a hint: Make sure you're copying all the letters carefully, just without the harakat marks.
+        `, [
+          { label: 'Show Reference', action: 'show-reference', class: 'secondary' },
+          { label: 'Try Again', action: 'open-keyboard' }
+        ]);
       }
-    }
-
-    if (stageNum === 4) {
-      const canvas = document.getElementById('memoryCanvas');
-      const textInput = document.getElementById('memoryTextInput').value;
-
-      if (!textInput && !this.hasDrawing(canvas)) {
-        this.showToast('Please write the ayah from memory.', 'error');
-        return;
-      }
-
-      // Verify memory writing (simplified verification)
-      const correctText = this.removeHarakat(this.state.ayahData[0].text);
-      if (textInput) {
-        const similarity = this.calculateSimilarity(this.removeHarakat(textInput), correctText);
-        if (similarity < 0.7) {
-          this.showToast('Your writing doesn\'t match well. Please try again or check the reference.', 'error');
-          return;
-        }
-      }
-    }
-
-    if (stageNum === 5) {
-      const harakatInput = document.getElementById('harakatInput').value;
-      if (!harakatInput.trim()) {
-        this.showToast('Please add the harakat to the text.', 'error');
-        return;
-      }
-
-      // Verify harakat (simplified)
-      const correctText = this.state.ayahData[0].text;
-      const similarity = this.calculateSimilarity(harakatInput.trim(), correctText.trim());
-      if (similarity < 0.8) {
-        this.showToast('Some harakat may be incorrect. Check the reference and try again.', 'info');
-      }
-    }
-
-    this.showToast(`Stage ${stageNum} completed! ✓`, 'success');
-    this.state.currentStage = stageNum + 1;
-    this.updateStageUI();
+    }, 1000);
   }
 
-  hasDrawing(canvas) {
-    const ctx = canvas.getContext('2d');
-    const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    return pixelData.some(channel => channel !== 0);
+  // === STAGE 3: READ FROM HANDWRITING ===
+
+  startStage3() {
+    this.blurPreviousAyahs();
+
+    this.addAIMessage(`
+      <strong>Stage 3: Read from Your Writing</strong> 📖<br><br>
+      Now read the ayah aloud from what you just wrote (without harakat).<br><br>
+      This tests your ability to recognize and vocalize the letters correctly. If you need a reminder of the pronunciation, you can show the reference with harakat.<br><br>
+      Record yourself reading from your writing.
+    `);
+
+    this.updateActionButtons([
+      { label: 'Record Reading', icon: '🎤', action: 'record' },
+      { label: 'Show Reference', icon: '👁️', action: 'show-reference' },
+      { label: 'I Can Read It', icon: '✅', action: 'confirm-memorized' }
+    ]);
   }
 
-  calculateSimilarity(str1, str2) {
-    // Simple Levenshtein distance based similarity
-    const longer = str1.length > str2.length ? str1 : str2;
-    const shorter = str1.length > str2.length ? str2 : str1;
+  // === STAGE 4: WRITE FROM MEMORY ===
 
-    if (longer.length === 0) return 1.0;
+  startStage4() {
+    this.closeZoom(); // Remove visual aid
 
-    const editDistance = this.levenshteinDistance(longer, shorter);
-    return (longer.length - editDistance) / longer.length;
+    this.addAIMessage(`
+      <strong>Stage 4: Write from Memory</strong> 🧠<br><br>
+      Now for the real test! Write the ayah <strong>from memory</strong> without looking at any reference.<br><br>
+      Don't worry if it's not perfect - this step strengthens your memorization. Trust what you've learned!
+    `);
+
+    this.updateActionButtons([
+      { label: 'Upload Photo', icon: '📷', action: 'upload-image' },
+      { label: 'Type from Memory', icon: '⌨️', action: 'open-keyboard' }
+    ]);
   }
 
-  levenshteinDistance(str1, str2) {
-    const matrix = [];
+  verifyMemoryWriting(text) {
+    const correctText = this.removeHarakat(this.state.ayahData[0].text);
+    const similarity = this.calculateSimilarity(this.removeHarakat(text), correctText);
 
-    for (let i = 0; i <= str2.length; i++) {
-      matrix[i] = [i];
-    }
+    this.showTypingIndicator();
+    setTimeout(() => {
+      this.hideTypingIndicator();
 
-    for (let j = 0; j <= str1.length; j++) {
-      matrix[0][j] = j;
-    }
-
-    for (let i = 1; i <= str2.length; i++) {
-      for (let j = 1; j <= str1.length; j++) {
-        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
-        }
+      if (similarity > 0.8) {
+        this.addAIMessage(`
+          Mashallah! 🌟 Your memory recall is ${Math.round(similarity * 100)}% accurate!<br><br>
+          This shows that the ayah is firmly planted in your memory. Excellent work!<br><br>
+          Now let's perfect the pronunciation by adding the harakat.
+        `, [
+          { label: 'Continue to Stage 5', action: 'confirm-memorized', class: 'success' }
+        ]);
+      } else {
+        this.addAIMessage(`
+          Good effort! Your recall is ${Math.round(similarity * 100)}% accurate.<br><br>
+          Let's strengthen this. Would you like to review the ayah and try again?
+        `, [
+          { label: 'Review & Retry', action: 'show-reference', class: 'secondary' },
+          { label: 'Try Again', action: 'open-keyboard' },
+          { label: 'Continue Anyway', action: 'confirm-memorized' }
+        ]);
       }
-    }
-
-    return matrix[str2.length][str1.length];
+    }, 1000);
   }
 
-  updateStageUI() {
-    // Update progress steps
-    document.querySelectorAll('.step').forEach((step, index) => {
-      const stepNum = index + 1;
-      step.classList.remove('active', 'completed');
+  // === STAGE 5: ADD HARAKAT ===
 
-      if (stepNum < this.state.currentStage) {
-        step.classList.add('completed');
-      } else if (stepNum === this.state.currentStage) {
-        step.classList.add('active');
+  startStage5() {
+    const textWithoutHarakat = this.removeHarakat(this.state.ayahData[0].text);
+
+    this.addAIMessage(`
+      <strong>Stage 5: Add Harakat (Vowel Marks)</strong> 🔤<br><br>
+      Here's the text without harakat:<br>
+      <span class="arabic">${textWithoutHarakat}</span><br><br>
+      Now add the correct harakat to each letter. This ensures you know the exact pronunciation.<br><br>
+      Use the Arabic keyboard - it has all the harakat marks (fathah, dammah, kasrah, sukoon, shaddah, tanween).
+    `);
+
+    this.updateActionButtons([
+      { label: 'Type with Harakat', icon: '⌨️', action: 'open-keyboard' },
+      { label: 'Show Correct Harakat', icon: '👁️', action: 'show-reference' }
+    ]);
+  }
+
+  verifyHarakat(text) {
+    const correctText = this.state.ayahData[0].text;
+    const similarity = this.calculateSimilarity(text.trim(), correctText.trim());
+
+    this.showTypingIndicator();
+    setTimeout(() => {
+      this.hideTypingIndicator();
+
+      if (similarity > 0.9) {
+        this.addAIMessage(`
+          Perfect! ✨ Your harakat placement is ${Math.round(similarity * 100)}% accurate!<br><br>
+          You've demonstrated excellent understanding of the pronunciation marks. This is crucial for correct recitation.<br><br>
+          Now for the final stage - recite from memory and learn the meanings!
+        `, [
+          { label: 'Final Stage', action: 'confirm-memorized', class: 'success' }
+        ]);
+      } else {
+        this.addAIMessage(`
+          Close! Your harakat accuracy is ${Math.round(similarity * 100)}%.<br><br>
+          Some marks might be in the wrong place. Check carefully and try again.
+        `, [
+          { label: 'Show Correct', action: 'show-reference', class: 'secondary' },
+          { label: 'Try Again', action: 'open-keyboard' },
+          { label: 'Continue Anyway', action: 'confirm-memorized' }
+        ]);
       }
-    });
-
-    // Show current stage
-    for (let i = 1; i <= 6; i++) {
-      const stage = document.getElementById(`stage${i}`);
-      if (stage) {
-        stage.classList.toggle('active', i === this.state.currentStage);
-      }
-    }
+    }, 1000);
   }
 
-  loadRootWords(text) {
-    // Simulated root word analysis (in production, this would call a real API)
-    const words = text.split(' ').filter(w => w.length > 2);
-    const rootWordsList = document.getElementById('rootWordsList');
+  // === STAGE 6: FINAL RECITATION & ROOT WORDS ===
 
-    const rootWordsHTML = words.slice(0, 10).map(word => {
-      const root = this.extractRoot(word);
-      return `
-        <div class="root-word-item">
-          <div class="root-word-arabic">${word} ← ${root}</div>
-          <div class="root-word-meaning">Root meaning: ${this.getRootMeaning(root)}</div>
-        </div>
-      `;
-    }).join('');
+  startStage6() {
+    const arabicText = this.state.ayahData[0].text;
+    const rootWords = this.analyzeRootWords(arabicText);
 
-    rootWordsList.innerHTML = rootWordsHTML || '<p>Loading word analysis...</p>';
+    let rootWordsHTML = rootWords.map(w => `
+      <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--background); border-radius: 4px;">
+        <strong style="font-family: var(--font-arabic);">${w.word}</strong> (${w.root})<br>
+        <small>${w.meaning}</small>
+      </div>
+    `).join('');
+
+    this.addAIMessage(`
+      <strong>Stage 6: Final Recitation & Word Study</strong> 📚<br><br>
+      You've done amazing work! One last step - recite the complete ayah from memory.<br><br>
+      <span class="arabic">${arabicText}</span><br><br>
+      <strong>Root Words & Meanings:</strong><br>
+      ${rootWordsHTML}<br>
+      Reflect on these meanings as you recite. Understanding the words deepens your connection to the ayah.
+    `);
+
+    this.updateActionButtons([
+      { label: 'Final Recitation', icon: '🎤', action: 'record' },
+      { label: 'I Understand & Confirm', icon: '✅', action: 'confirm-understanding' }
+    ]);
   }
 
-  extractRoot(word) {
-    // Simplified root extraction (removes common prefixes and suffixes)
-    let root = this.removeHarakat(word);
-    // Remove common prefixes
-    root = root.replace(/^(ال|و|ف|ب|ل|ك)/, '');
-    // Remove common suffixes
-    root = root.replace(/(ون|ين|ات|ة|ها|هم|كم|نا)$/, '');
-    return root || word;
-  }
-
-  getRootMeaning(root) {
-    // Placeholder - in production, would use a real Arabic dictionary API
+  analyzeRootWords(text) {
+    // Simplified root word analysis
+    const words = text.split(' ').filter(w => w.length > 2).slice(0, 6);
     const meanings = {
-      'الله': 'The One True God',
-      'رحم': 'Mercy, Compassion',
-      'حمد': 'Praise, Gratitude',
-      'ملك': 'Sovereignty, Kingdom',
-      'عبد': 'Worship, Servitude',
-      'صرط': 'Path, Way',
-      'هدي': 'Guidance',
+      'الله': { root: 'إله', meaning: 'God, The One True God' },
+      'الرحمن': { root: 'رحم', meaning: 'The Most Merciful (intensive form)' },
+      'الرحيم': { root: 'رحم', meaning: 'The Especially Merciful (continuous form)' },
+      'الحمد': { root: 'حمد', meaning: 'Praise, gratitude' },
+      'رب': { root: 'ربب', meaning: 'Lord, Sustainer, Nurturer' },
+      'العالمين': { root: 'علم', meaning: 'The worlds, all creation' },
+      'مالك': { root: 'ملك', meaning: 'Owner, Master, King' },
+      'يوم': { root: 'يوم', meaning: 'Day' },
+      'الدين': { root: 'دين', meaning: 'Judgment, Religion' },
+      'نعبد': { root: 'عبد', meaning: 'We worship' },
+      'نستعين': { root: 'عون', meaning: 'We seek help' },
+      'اهدنا': { root: 'هدي', meaning: 'Guide us' },
+      'الصراط': { root: 'صرط', meaning: 'The path' },
+      'المستقيم': { root: 'قوم', meaning: 'The straight' }
     };
 
-    return meanings[root] || 'Consult Arabic dictionary for full meaning';
+    return words.map(word => {
+      const cleanWord = this.removeHarakat(word);
+      if (meanings[cleanWord]) {
+        return { word: cleanWord, ...meanings[cleanWord] };
+      }
+      return {
+        word: cleanWord,
+        root: this.extractRoot(cleanWord),
+        meaning: 'Research this root for deeper understanding'
+      };
+    });
   }
 
-  loadTafsir() {
-    // Placeholder tafsir (in production, would fetch from API)
-    const tafsirText = document.getElementById('tafsirText');
-    tafsirText.innerHTML = `
-      <p><strong>Brief Commentary:</strong></p>
-      <p>This ayah is part of Surah ${this.state.currentSurah.englishName}.
-      For detailed tafsir, consult scholars like Ibn Kathir, Al-Qurtubi, or At-Tabari.</p>
-      <p><strong>Key Themes:</strong></p>
-      <ul>
-        <li>Reflect on the meaning in your own language</li>
-        <li>Consider how it applies to your life</li>
-        <li>Research classical and contemporary interpretations</li>
-      </ul>
-    `;
+  confirmUnderstanding() {
+    this.addUserMessage('I understand the meanings and have completed my final recitation');
+    this.completeAyah();
+  }
+
+  // === STAGE COMPLETION ===
+
+  confirmStageComplete() {
+    this.addUserMessage(`Completed Stage ${this.state.currentStage}`);
+
+    const encouragements = [
+      'Excellent progress! May Allah bless your efforts. 🌟',
+      'Mashallah! You\'re doing wonderfully! 💪',
+      'Great work! Keep up this momentum! ⭐',
+      'Alhamdulillah! Your dedication is inspiring! 🎯',
+      'Well done! You\'re making real progress! 🏆'
+    ];
+
+    const randomEncouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
+
+    this.showTypingIndicator();
+    setTimeout(() => {
+      this.hideTypingIndicator();
+      this.addAIMessage(randomEncouragement);
+
+      this.state.currentStage++;
+      this.startNextStage();
+    }, 800);
+  }
+
+  startNextStage() {
+    switch (this.state.currentStage) {
+      case 2: this.startStage2(); break;
+      case 3: this.startStage3(); break;
+      case 4: this.startStage4(); break;
+      case 5: this.startStage5(); break;
+      case 6: this.startStage6(); break;
+      default: break;
+    }
   }
 
   completeAyah() {
@@ -782,123 +1081,175 @@ class EvenAnAyah {
     }
 
     this.saveProgress();
+    this.renderQuranPage(); // Update learned status
 
-    this.showToast('🎉 Congratulations! You have completed this ayah!', 'success');
-
-    // Check if surah is complete
+    // Check if surah complete
     if (this.state.currentAyah >= this.state.currentSurah.numberOfAyahs) {
-      this.showToast(`🏆 You have completed Surah ${this.state.currentSurah.englishName}!`, 'success');
-      setTimeout(() => this.showScreen('surahSelect'), 2000);
-    } else {
-      // Move to next ayah
+      this.addAIMessage(`
+        🏆 <strong>CONGRATULATIONS!</strong> 🏆<br><br>
+        You have completed Surah ${this.state.currentSurah.englishName}!<br><br>
+        This is an incredible achievement. May Allah accept your efforts and grant you understanding of His words.<br><br>
+        Total ayahs learned: <strong>${this.state.progress.ayahsLearned}</strong><br>
+        Current streak: <strong>${this.state.progress.streak} days</strong>
+      `, [
+        { label: 'Select New Surah', action: 'select-surah', class: 'success' }
+      ]);
+
       setTimeout(() => {
-        this.state.currentAyah++;
-        this.state.currentStage = 1;
-        this.startLearning();
-      }, 2000);
+        document.querySelectorAll('[data-action="select-surah"]').forEach(btn => {
+          btn.addEventListener('click', () => this.showSurahList());
+        });
+      }, 600);
+    } else {
+      this.addAIMessage(`
+        🎉 <strong>Ayah ${this.state.currentAyah} Completed!</strong> 🎉<br><br>
+        Mashallah! You've successfully memorized and understood this ayah.<br><br>
+        Ready for the next ayah?
+      `, [
+        { label: 'Next Ayah (' + (this.state.currentAyah + 1) + ')', action: 'next-ayah', class: 'success' }
+      ]);
+
+      this.updateActionButtons([
+        { label: 'Next Ayah', icon: '▶️', action: 'start-next-ayah' }
+      ]);
+
+      setTimeout(() => {
+        document.querySelectorAll('[data-action="next-ayah"], [data-action="start-next-ayah"]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            this.state.currentAyah++;
+            this.state.currentStage = 0;
+            this.startLearningAyah();
+          });
+        });
+      }, 600);
     }
+  }
+
+  // === UTILITIES ===
+
+  removeHarakat(text) {
+    return text.replace(/[\u064B-\u065F\u0670]/g, '');
+  }
+
+  extractRoot(word) {
+    let root = this.removeHarakat(word);
+    root = root.replace(/^(ال|و|ف|ب|ل|ك)/, '');
+    root = root.replace(/(ون|ين|ات|ة|ها|هم|كم|نا)$/, '');
+    return root || word;
+  }
+
+  calculateSimilarity(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    if (longer.length === 0) return 1.0;
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  levenshteinDistance(str1, str2) {
+    const matrix = [];
+    for (let i = 0; i <= str2.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= str1.length; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+        }
+      }
+    }
+    return matrix[str2.length][str1.length];
   }
 
   updateStreak() {
     const sortedDays = this.state.progress.daysActive.sort((a, b) => new Date(b) - new Date(a));
     let streak = 1;
-    const today = new Date();
-
     for (let i = 0; i < sortedDays.length - 1; i++) {
-      const currentDay = new Date(sortedDays[i]);
-      const nextDay = new Date(sortedDays[i + 1]);
-      const diffDays = (currentDay - nextDay) / (1000 * 60 * 60 * 24);
-
-      if (diffDays === 1) {
-        streak++;
-      } else {
-        break;
-      }
+      const diff = (new Date(sortedDays[i]) - new Date(sortedDays[i + 1])) / (1000 * 60 * 60 * 24);
+      if (diff === 1) streak++;
+      else break;
     }
-
     this.state.progress.streak = streak;
   }
 
-  handleMenuAction(action) {
-    switch (action) {
-      case 'home':
-        this.showScreen('welcome');
-        break;
-      case 'select-surah':
-        this.showScreen('surahSelect');
-        break;
-      case 'progress':
-        this.updateProgressScreen();
-        this.showScreen('progress');
-        break;
-      case 'settings':
-        this.showScreen('settings');
-        break;
-      case 'about':
-        this.showScreen('about');
-        break;
-    }
+  adjustFontSize(delta) {
+    const newSize = Math.max(20, Math.min(60, this.state.settings.fontSize + delta));
+    this.state.settings.fontSize = newSize;
+    document.documentElement.style.setProperty('--arabic-font-size', `${newSize}px`);
+    this.elements.fontSizeRange.value = newSize;
+    this.elements.fontSizeValue.textContent = `${newSize}px`;
+    this.saveSettings();
   }
 
-  updateProgressScreen() {
+  // === PROGRESS VIEW ===
+
+  showProgressView() {
+    this.showView('progressView');
     document.getElementById('totalAyahsLearned').textContent = this.state.progress.ayahsLearned;
     document.getElementById('totalDaysActive').textContent = this.state.progress.daysActive.length;
     document.getElementById('currentStreak').textContent = this.state.progress.streak;
 
-    // Surah progress list
     const progressItems = document.querySelector('.progress-items');
-    const surahProgressHTML = Object.entries(this.state.progress.surahProgress)
-      .map(([surahNum, ayahNum]) => {
-        const surah = this.state.surahs.find(s => s.number === parseInt(surahNum));
-        if (!surah) return '';
+    const html = Object.entries(this.state.progress.surahProgress).map(([num, ayahNum]) => {
+      const surah = this.state.surahs.find(s => s.number === parseInt(num));
+      if (!surah) return '';
+      const pct = (ayahNum / surah.numberOfAyahs) * 100;
+      return `
+        <div class="progress-item">
+          <span>${surah.englishName}</span>
+          <span>${ayahNum}/${surah.numberOfAyahs}</span>
+          <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%"></div></div>
+        </div>
+      `;
+    }).join('');
 
-        const percentage = (ayahNum / surah.numberOfAyahs) * 100;
-        return `
-          <div class="progress-item">
-            <span>${surah.englishName}</span>
-            <span>${ayahNum}/${surah.numberOfAyahs}</span>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${percentage}%"></div>
-            </div>
-          </div>
-        `;
-      }).join('');
+    progressItems.innerHTML = html || '<p style="padding: 1rem;">No progress yet</p>';
 
-    progressItems.innerHTML = surahProgressHTML || '<p style="padding: 1rem;">No progress yet. Start learning!</p>';
+    this.addAIMessage(`
+      Here's your learning journey so far:<br><br>
+      📚 <strong>${this.state.progress.ayahsLearned}</strong> ayahs memorized<br>
+      📅 <strong>${this.state.progress.daysActive.length}</strong> days active<br>
+      🔥 <strong>${this.state.progress.streak}</strong> day streak<br><br>
+      Keep up the excellent work! Consistency is key to memorization.
+    `);
   }
 
-  showScreen(screenName) {
-    // Hide all screens
-    document.querySelectorAll('.screen').forEach(screen => {
-      screen.classList.remove('active');
-    });
-
-    // Show selected screen
-    const screenMap = {
-      'welcome': this.elements.welcomeScreen,
-      'surahSelect': this.elements.surahSelectScreen,
-      'ayahSelect': this.elements.ayahSelectScreen,
-      'learning': this.elements.learningScreen,
-      'progress': this.elements.progressScreen,
-      'settings': this.elements.settingsScreen,
-      'about': this.elements.aboutScreen
-    };
-
-    const screen = screenMap[screenName];
-    if (screen) {
-      screen.classList.add('active');
-      this.state.currentScreen = screenName;
-    }
+  showAbout() {
+    this.addAIMessage(`
+      <strong>About Even an Ayah</strong> 📖<br><br>
+      Based on the hadith:<br>
+      <em>"بلغوا عني ولو آية"</em><br>
+      "Convey from me even an Ayah of the Qur'an"<br>
+      <small>— Al-Bukhari (Riyad as-Salihin 1380)</small><br><br>
+      This AI-native app helps you memorize the Quran one ayah at a time using proven learning techniques:<br><br>
+      ✅ Spaced repetition<br>
+      ✅ Active recall<br>
+      ✅ Multi-sensory learning<br>
+      ✅ Understanding root words<br><br>
+      May Allah accept our efforts. Ameen.
+    `);
   }
+
+  // === UI HELPERS ===
 
   openMenu() {
-    this.elements.sideMenu.classList.add('open');
-    this.elements.menuOverlay.classList.add('active');
+    document.getElementById('sideMenu').classList.add('open');
+    document.getElementById('menuOverlay').classList.add('active');
   }
 
   closeMenu() {
-    this.elements.sideMenu.classList.remove('open');
-    this.elements.menuOverlay.classList.remove('active');
+    document.getElementById('sideMenu').classList.remove('open');
+    document.getElementById('menuOverlay').classList.remove('active');
+  }
+
+  openModal(modalId) {
+    document.getElementById(modalId).classList.remove('hidden');
+  }
+
+  closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
   }
 
   showLoading(text = 'Loading...') {
@@ -914,20 +1265,18 @@ class EvenAnAyah {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
-
     this.elements.toastContainer.appendChild(toast);
-
     setTimeout(() => {
       toast.style.animation = 'slideIn 0.3s ease reverse';
       setTimeout(() => toast.remove(), 300);
     }, 3000);
   }
 
+  // === PERSISTENCE ===
+
   loadSettings() {
     const saved = localStorage.getItem('evenanayah_settings');
-    if (saved) {
-      this.state.settings = { ...this.state.settings, ...JSON.parse(saved) };
-    }
+    if (saved) this.state.settings = { ...this.state.settings, ...JSON.parse(saved) };
   }
 
   saveSettings() {
@@ -935,19 +1284,13 @@ class EvenAnAyah {
   }
 
   applySettings() {
-    // Apply dark mode
     this.elements.darkModeToggle.checked = this.state.settings.darkMode;
     this.applyDarkMode();
-
-    // Apply font size
     this.elements.fontSizeRange.value = this.state.settings.fontSize;
     this.elements.fontSizeValue.textContent = `${this.state.settings.fontSize}px`;
     document.documentElement.style.setProperty('--arabic-font-size', `${this.state.settings.fontSize}px`);
-
-    // Apply other settings
     this.elements.reciterSelect.value = this.state.settings.reciter;
     this.elements.translationSelect.value = this.state.settings.translation;
-    this.elements.autoPlayAudio.checked = this.state.settings.autoPlayAudio;
   }
 
   applyDarkMode() {
@@ -960,9 +1303,7 @@ class EvenAnAyah {
 
   loadProgress() {
     const saved = localStorage.getItem('evenanayah_progress');
-    if (saved) {
-      this.state.progress = { ...this.state.progress, ...JSON.parse(saved) };
-    }
+    if (saved) this.state.progress = { ...this.state.progress, ...JSON.parse(saved) };
   }
 
   saveProgress() {
@@ -970,31 +1311,21 @@ class EvenAnAyah {
   }
 
   resetProgress() {
-    this.state.progress = {
-      ayahsLearned: 0,
-      daysActive: [],
-      streak: 0,
-      surahProgress: {}
-    };
+    this.state.progress = { ayahsLearned: 0, daysActive: [], streak: 0, surahProgress: {} };
     this.saveProgress();
-    this.showToast('Progress has been reset.', 'info');
+    this.showToast('Progress reset', 'info');
+    this.addAIMessage('Your progress has been reset. Ready for a fresh start!');
   }
 }
 
-// Initialize the app when DOM is ready
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new EvenAnAyah();
 });
 
-// Service Worker Registration for PWA
+// Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(registration => {
-        console.log('ServiceWorker registered:', registration);
-      })
-      .catch(error => {
-        console.log('ServiceWorker registration failed:', error);
-      });
+    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW failed:', err));
   });
 }

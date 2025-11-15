@@ -25,15 +25,20 @@
   <div id="app">
     <!-- Header -->
     <header class="app-header">
+      <div class="header-left">
+        <button id="menuBtn" class="menu-btn" aria-label="Menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
       <div class="header-content">
         <h1 class="app-title">بلغوا عني ولو آية</h1>
         <p class="app-subtitle">Even an Ayah</p>
       </div>
-      <button id="menuBtn" class="menu-btn" aria-label="Menu">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
+      <div class="header-right">
+        <button id="settingsBtn" class="icon-btn" title="Settings">⚙️</button>
+      </div>
     </header>
 
     <!-- Side Menu -->
@@ -52,300 +57,121 @@
     </nav>
     <div id="menuOverlay" class="menu-overlay"></div>
 
-    <!-- Main Content -->
-    <main class="main-content">
-      <!-- Welcome Screen -->
-      <section id="welcomeScreen" class="screen active">
-        <div class="welcome-container">
-          <div class="welcome-icon">📖</div>
-          <h2>Welcome to Even an Ayah</h2>
-          <p class="welcome-text">
-            "Convey from me even an Ayah of the Qur'an"<br>
-            <span class="arabic-text">بلغوا عني ولو آية</span>
-          </p>
-          <p class="welcome-desc">
-            Master the Quran one ayah at a time through a structured learning process:
-          </p>
-          <ul class="learning-steps">
-            <li>🎙️ Listen & repeat the recitation</li>
-            <li>✍️ Write the ayah without vowel marks</li>
-            <li>📝 Read from your handwriting</li>
-            <li>🧠 Write from memory</li>
-            <li>🔤 Add the harakat (vowel marks)</li>
-            <li>📚 Learn root words & meanings</li>
-          </ul>
-          <button id="startBtn" class="primary-btn">Start Learning</button>
+    <!-- Main Split Layout -->
+    <main class="main-container">
+      <!-- Left Panel: Quran Page View -->
+      <div class="quran-panel" id="quranPanel">
+        <div class="quran-panel-header">
+          <h2 id="quranPanelTitle">القرآن الكريم</h2>
+          <div class="panel-controls">
+            <button id="zoomOutBtn" class="panel-btn" title="Zoom Out">➖</button>
+            <button id="zoomInBtn" class="panel-btn" title="Zoom In">➕</button>
+            <button id="fullPageBtn" class="panel-btn" title="Full Page">📄</button>
+          </div>
         </div>
-      </section>
 
-      <!-- Surah Selection Screen -->
-      <section id="surahSelectScreen" class="screen">
-        <div class="screen-header">
-          <h2>Select a Surah</h2>
-          <input type="search" id="surahSearch" placeholder="Search surah..." class="search-input">
+        <!-- Welcome/Surah Selection (initially visible) -->
+        <div id="quranWelcome" class="quran-content-view active">
+          <div class="welcome-overlay">
+            <div class="welcome-icon">📖</div>
+            <h2>Welcome to Even an Ayah</h2>
+            <p class="arabic-welcome">بلغوا عني ولو آية</p>
+            <p>"Convey from me even an Ayah"</p>
+            <button id="selectSurahBtn" class="primary-btn">Select a Surah to Begin</button>
+          </div>
         </div>
-        <div id="surahList" class="surah-list">
-          <div class="loading">Loading surahs...</div>
-        </div>
-      </section>
 
-      <!-- Ayah Selection Screen -->
-      <section id="ayahSelectScreen" class="screen">
-        <div class="screen-header">
-          <button id="backToSurahBtn" class="back-btn">← Back</button>
-          <h2 id="selectedSurahName">Surah Name</h2>
-        </div>
-        <div class="ayah-info">
-          <p>Total Ayahs: <span id="totalAyahs">0</span></p>
-          <p>Your Progress: <span id="surahProgress">0</span>/<span id="surahTotal">0</span></p>
-        </div>
-        <div class="ayah-selector">
-          <label for="ayahNumber">Start from Ayah:</label>
-          <input type="number" id="ayahNumber" min="1" value="1" class="number-input">
-          <button id="startAyahBtn" class="primary-btn">Begin</button>
-        </div>
-      </section>
-
-      <!-- Main Learning Screen -->
-      <section id="learningScreen" class="screen">
-        <!-- Progress Indicator -->
-        <div class="learning-progress">
-          <div class="progress-steps">
-            <div class="step" data-step="1">
-              <span class="step-icon">🎙️</span>
-              <span class="step-label">Listen</span>
-            </div>
-            <div class="step" data-step="2">
-              <span class="step-icon">✍️</span>
-              <span class="step-label">Write</span>
-            </div>
-            <div class="step" data-step="3">
-              <span class="step-icon">📖</span>
-              <span class="step-label">Read</span>
-            </div>
-            <div class="step" data-step="4">
-              <span class="step-icon">🧠</span>
-              <span class="step-label">Memory</span>
-            </div>
-            <div class="step" data-step="5">
-              <span class="step-icon">🔤</span>
-              <span class="step-label">Harakat</span>
-            </div>
-            <div class="step" data-step="6">
-              <span class="step-icon">📚</span>
-              <span class="step-label">Learn</span>
+        <!-- Surah List View -->
+        <div id="surahListView" class="quran-content-view">
+          <div class="surah-list-container">
+            <input type="search" id="surahSearch" placeholder="Search surah..." class="search-input">
+            <div id="surahList" class="surah-grid">
+              <div class="loading">Loading surahs...</div>
             </div>
           </div>
         </div>
 
-        <!-- Current Ayah Info -->
-        <div class="ayah-header">
-          <span id="currentSurahAyah">Al-Fatiha 1:1</span>
-          <button id="showHintBtn" class="hint-btn" title="Show hint">💡</button>
-        </div>
-
-        <!-- Stage 1: Listen & Memorize by Tongue -->
-        <div id="stage1" class="learning-stage active">
-          <h3>Stage 1: Listen & Memorize by Tongue</h3>
-          <p class="stage-instruction">Listen to the correct recitation and repeat until you can recite without mistakes.</p>
-
-          <div class="arabic-display" id="arabicTextDisplay">
-            <div class="word-by-word" id="wordByWord"></div>
-          </div>
-
-          <div class="audio-controls">
-            <button id="playAudioBtn" class="audio-btn">▶️ Play Recitation</button>
-            <button id="repeatAudioBtn" class="audio-btn">🔄 Repeat</button>
-          </div>
-
-          <div class="translation-display">
-            <h4>Translation:</h4>
-            <p id="translationText"></p>
-          </div>
-
-          <div class="recording-section">
-            <p>Record yourself reciting:</p>
-            <button id="recordBtn" class="record-btn">🎤 Start Recording</button>
-            <div id="recordingStatus" class="recording-status"></div>
-          </div>
-
-          <button id="stage1CompleteBtn" class="complete-btn">I've Memorized by Tongue ✓</button>
-        </div>
-
-        <!-- Stage 2: Write Without Harakat -->
-        <div id="stage2" class="learning-stage">
-          <h3>Stage 2: Write Without Harakat</h3>
-          <p class="stage-instruction">Write the ayah without vowel marks (harakat). You can see the text for reference.</p>
-
-          <div class="reference-text">
-            <button id="toggleReferenceBtn" class="toggle-btn">Show Arabic Text</button>
-            <div id="referenceText" class="arabic-display hidden"></div>
-          </div>
-
-          <div class="writing-area">
-            <canvas id="writingCanvas" class="writing-canvas"></canvas>
-            <div class="canvas-controls">
-              <button id="clearCanvasBtn" class="canvas-btn">🗑️ Clear</button>
-              <button id="undoCanvasBtn" class="canvas-btn">↩️ Undo</button>
-              <input type="color" id="penColor" value="#000000" class="color-picker">
-              <input type="range" id="penSize" min="1" max="10" value="3" class="size-slider">
+        <!-- Quran Page View -->
+        <div id="quranPageView" class="quran-content-view">
+          <div class="quran-page" id="quranPage">
+            <div class="page-bismillah" id="pageBismillah">
+              بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+            </div>
+            <div class="surah-title" id="surahTitleDisplay">
+              <span class="surah-name-ar"></span>
+              <span class="surah-name-en"></span>
+            </div>
+            <div class="ayahs-container" id="ayahsContainer">
+              <!-- Ayahs will be rendered here -->
             </div>
           </div>
-
-          <div class="text-input-option">
-            <p>Or type the text (without harakat):</p>
-            <textarea id="writtenTextInput" class="arabic-input" dir="rtl" placeholder="اكتب الآية هنا بدون تشكيل..."></textarea>
+          <!-- Zoom Focus Overlay -->
+          <div class="zoom-overlay" id="zoomOverlay">
+            <div class="focused-ayah" id="focusedAyah"></div>
           </div>
-
-          <button id="stage2CompleteBtn" class="complete-btn">Check My Writing ✓</button>
         </div>
 
-        <!-- Stage 3: Read from Handwriting -->
-        <div id="stage3" class="learning-stage">
-          <h3>Stage 3: Read from Your Writing</h3>
-          <p class="stage-instruction">Read the ayah from what you wrote (without harakat). The text can be shown if needed.</p>
-
-          <div class="your-writing">
-            <h4>Your Writing:</h4>
-            <div id="yourWritingDisplay" class="writing-display"></div>
-          </div>
-
-          <div class="reference-text">
-            <button id="toggleReference2Btn" class="toggle-btn">Show Arabic Text with Harakat</button>
-            <div id="referenceText2" class="arabic-display hidden"></div>
-          </div>
-
-          <div class="recording-section">
-            <p>Record yourself reading from your writing:</p>
-            <button id="recordBtn2" class="record-btn">🎤 Start Recording</button>
-            <div id="recordingStatus2" class="recording-status"></div>
-          </div>
-
-          <button id="stage3CompleteBtn" class="complete-btn">I Can Read It Correctly ✓</button>
-        </div>
-
-        <!-- Stage 4: Write from Memory -->
-        <div id="stage4" class="learning-stage">
-          <h3>Stage 4: Write from Memory</h3>
-          <p class="stage-instruction">Now write the ayah from memory without looking at the text.</p>
-
-          <div class="writing-area">
-            <canvas id="memoryCanvas" class="writing-canvas"></canvas>
-            <div class="canvas-controls">
-              <button id="clearMemoryCanvasBtn" class="canvas-btn">🗑️ Clear</button>
-              <button id="undoMemoryCanvasBtn" class="canvas-btn">↩️ Undo</button>
+        <!-- Progress View -->
+        <div id="progressView" class="quran-content-view">
+          <div class="progress-container">
+            <h2>My Progress</h2>
+            <div class="progress-stats">
+              <div class="stat-card">
+                <span class="stat-number" id="totalAyahsLearned">0</span>
+                <span class="stat-label">Ayahs Learned</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-number" id="totalDaysActive">0</span>
+                <span class="stat-label">Days Active</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-number" id="currentStreak">0</span>
+                <span class="stat-label">Day Streak</span>
+              </div>
+            </div>
+            <div class="surah-progress-list" id="surahProgressList">
+              <h3>Surah Progress</h3>
+              <div class="progress-items"></div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div class="text-input-option">
-            <p>Or type from memory:</p>
-            <textarea id="memoryTextInput" class="arabic-input" dir="rtl" placeholder="اكتب الآية من حفظك..."></textarea>
+      <!-- Right Panel: AI Chat Interface -->
+      <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+          <div class="ai-avatar">🤖</div>
+          <div class="ai-info">
+            <h3>Quran Learning Assistant</h3>
+            <span class="ai-status" id="aiStatus">Ready to help</span>
           </div>
-
-          <button id="stage4CompleteBtn" class="complete-btn">Check My Memory Writing ✓</button>
+          <button id="toggleChatBtn" class="toggle-panel-btn" title="Toggle Chat">💬</button>
         </div>
 
-        <!-- Stage 5: Add Harakat -->
-        <div id="stage5" class="learning-stage">
-          <h3>Stage 5: Add Harakat (Vowel Marks)</h3>
-          <p class="stage-instruction">Add the correct harakat to the text. You can show the reference if needed.</p>
-
-          <div class="text-without-harakat">
-            <h4>Text without Harakat:</h4>
-            <p id="textWithoutHarakat" class="arabic-display"></p>
-          </div>
-
-          <div class="reference-text">
-            <button id="toggleReference3Btn" class="toggle-btn">Show Correct Harakat</button>
-            <div id="referenceText3" class="arabic-display hidden"></div>
-          </div>
-
-          <div class="harakat-input">
-            <p>Type the text with correct harakat:</p>
-            <textarea id="harakatInput" class="arabic-input" dir="rtl" placeholder="اكتب الآية مع التشكيل الصحيح..."></textarea>
-          </div>
-
-          <div class="harakat-keyboard" id="harakatKeyboard">
-            <button class="harakat-key" data-char="َ">فَتحة</button>
-            <button class="harakat-key" data-char="ُ">ضَمّة</button>
-            <button class="harakat-key" data-char="ِ">كَسرة</button>
-            <button class="harakat-key" data-char="ْ">سُكون</button>
-            <button class="harakat-key" data-char="ّ">شَدّة</button>
-            <button class="harakat-key" data-char="ً">تنوين فتح</button>
-            <button class="harakat-key" data-char="ٌ">تنوين ضم</button>
-            <button class="harakat-key" data-char="ٍ">تنوين كسر</button>
-          </div>
-
-          <button id="stage5CompleteBtn" class="complete-btn">Check Harakat ✓</button>
+        <div class="chat-messages" id="chatMessages">
+          <!-- Messages will be rendered here -->
         </div>
 
-        <!-- Stage 6: Final Recitation & Root Words -->
-        <div id="stage6" class="learning-stage">
-          <h3>Stage 6: Final Recitation & Word Study</h3>
-          <p class="stage-instruction">Recite the complete ayah from memory and study the root words.</p>
-
-          <div class="final-recitation">
-            <p>Recite the complete ayah from memory:</p>
-            <button id="recordBtn3" class="record-btn">🎤 Final Recitation</button>
-            <div id="recordingStatus3" class="recording-status"></div>
-          </div>
-
-          <div class="root-words-section">
-            <h4>Root Words & Meanings:</h4>
-            <div id="rootWordsList" class="root-words-list">
-              <div class="loading">Loading word analysis...</div>
+        <!-- Chat Input Area -->
+        <div class="chat-input-area" id="chatInputArea">
+          <!-- Dynamic input will be shown based on current stage -->
+          <div class="input-container">
+            <div class="action-buttons" id="actionButtons">
+              <!-- Action buttons will be dynamically added -->
             </div>
           </div>
-
-          <div class="tafsir-section">
-            <h4>Tafsir (Commentary):</h4>
-            <div id="tafsirText" class="tafsir-content">
-              <div class="loading">Loading tafsir...</div>
-            </div>
-          </div>
-
-          <div class="confirmation">
-            <label class="checkbox-label">
-              <input type="checkbox" id="confirmUnderstanding">
-              I confirm I understand the meaning and root words of this ayah
-            </label>
-          </div>
-
-          <button id="completeAyahBtn" class="success-btn" disabled>Complete Ayah & Get Next 🎉</button>
         </div>
-      </section>
+      </div>
+    </main>
 
-      <!-- Progress Screen -->
-      <section id="progressScreen" class="screen">
-        <div class="screen-header">
-          <h2>My Progress</h2>
-        </div>
-        <div class="progress-stats">
-          <div class="stat-card">
-            <span class="stat-number" id="totalAyahsLearned">0</span>
-            <span class="stat-label">Ayahs Learned</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-number" id="totalDaysActive">0</span>
-            <span class="stat-label">Days Active</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-number" id="currentStreak">0</span>
-            <span class="stat-label">Day Streak</span>
-          </div>
-        </div>
-        <div class="surah-progress-list" id="surahProgressList">
-          <h3>Surah Progress</h3>
-          <div class="progress-items"></div>
-        </div>
-      </section>
-
-      <!-- Settings Screen -->
-      <section id="settingsScreen" class="screen">
-        <div class="screen-header">
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
           <h2>Settings</h2>
+          <button id="closeSettingsBtn" class="close-btn">&times;</button>
         </div>
-        <div class="settings-list">
+        <div class="modal-body">
           <div class="setting-item">
             <label>Reciter</label>
             <select id="reciterSelect">
@@ -366,9 +192,9 @@
             </select>
           </div>
           <div class="setting-item">
-            <label>Font Size</label>
-            <input type="range" id="fontSizeRange" min="16" max="48" value="28">
-            <span id="fontSizeValue">28px</span>
+            <label>Arabic Font Size</label>
+            <input type="range" id="fontSizeRange" min="20" max="60" value="32">
+            <span id="fontSizeValue">32px</span>
           </div>
           <div class="setting-item">
             <label>
@@ -377,55 +203,115 @@
             </label>
           </div>
           <div class="setting-item">
-            <label>
-              <input type="checkbox" id="autoPlayAudio">
-              Auto-play Audio
-            </label>
-          </div>
-          <div class="setting-item">
             <button id="resetProgressBtn" class="danger-btn">Reset All Progress</button>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <!-- About Screen -->
-      <section id="aboutScreen" class="screen">
-        <div class="screen-header">
-          <h2>About</h2>
+    <!-- Image Upload Modal -->
+    <div id="uploadModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Upload Handwritten Text</h2>
+          <button id="closeUploadBtn" class="close-btn">&times;</button>
         </div>
-        <div class="about-content">
-          <div class="hadith-quote">
-            <p class="arabic-text">
-              بلغوا عني ولو آية وحدثوا عن بني إسرائيل ولا حرج، ومن كذب علي متعمدًا فليتبوأ مقعده من النار
-            </p>
-            <p class="translation">
-              "Convey from me even an Ayah of the Qur'an; relate traditions from Banu Israel, and there is no restriction on that; but he who deliberately forges a lie against me let him have his abode in the Hell."
-            </p>
-            <p class="reference">— Al-Bukhari (Riyad as-Salihin 1380)</p>
+        <div class="modal-body">
+          <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📷</div>
+            <p>Drag & drop your image here or</p>
+            <label class="upload-btn">
+              Choose File
+              <input type="file" id="imageUpload" accept="image/*" capture="environment">
+            </label>
+            <p class="upload-hint">Take a photo or upload an image of your handwritten ayah</p>
           </div>
-
-          <div class="app-info">
-            <h3>Even an Ayah</h3>
-            <p>An AI-native application designed to help you memorize the Quran one ayah at a time through a structured learning process.</p>
-
-            <h4>Features:</h4>
-            <ul>
-              <li>Step-by-step memorization process</li>
-              <li>Audio recitation from renowned reciters</li>
-              <li>Handwriting practice for better retention</li>
-              <li>Harakat (vowel marks) learning</li>
-              <li>Root word etymology and tafsir</li>
-              <li>Progress tracking</li>
-            </ul>
-
-            <h4>Data Source:</h4>
-            <p>Quran data provided by <a href="https://quranhub.com" target="_blank">QuranHub MCP Server</a></p>
+          <div class="upload-preview hidden" id="uploadPreview">
+            <img id="previewImage" alt="Preview">
+            <div class="preview-actions">
+              <button id="retakeBtn" class="secondary-btn">Retake</button>
+              <button id="submitImageBtn" class="primary-btn">Submit for Review</button>
+            </div>
           </div>
-
-          <p class="version">Version 1.0.0</p>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
+
+    <!-- Arabic Keyboard Modal -->
+    <div id="arabicKeyboardModal" class="modal hidden">
+      <div class="modal-content keyboard-modal">
+        <div class="modal-header">
+          <h2>Arabic Input</h2>
+          <button id="closeKeyboardBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="keyboard-output" id="keyboardOutput" dir="rtl"></div>
+          <div class="arabic-keyboard" id="arabicKeyboard">
+            <!-- Row 1: Basic letters -->
+            <div class="keyboard-row">
+              <button class="key" data-char="ض">ض</button>
+              <button class="key" data-char="ص">ص</button>
+              <button class="key" data-char="ث">ث</button>
+              <button class="key" data-char="ق">ق</button>
+              <button class="key" data-char="ف">ف</button>
+              <button class="key" data-char="غ">غ</button>
+              <button class="key" data-char="ع">ع</button>
+              <button class="key" data-char="ه">ه</button>
+              <button class="key" data-char="خ">خ</button>
+              <button class="key" data-char="ح">ح</button>
+              <button class="key" data-char="ج">ج</button>
+            </div>
+            <div class="keyboard-row">
+              <button class="key" data-char="ش">ش</button>
+              <button class="key" data-char="س">س</button>
+              <button class="key" data-char="ي">ي</button>
+              <button class="key" data-char="ب">ب</button>
+              <button class="key" data-char="ل">ل</button>
+              <button class="key" data-char="ا">ا</button>
+              <button class="key" data-char="ت">ت</button>
+              <button class="key" data-char="ن">ن</button>
+              <button class="key" data-char="م">م</button>
+              <button class="key" data-char="ك">ك</button>
+              <button class="key" data-char="ط">ط</button>
+            </div>
+            <div class="keyboard-row">
+              <button class="key" data-char="ئ">ئ</button>
+              <button class="key" data-char="ء">ء</button>
+              <button class="key" data-char="ؤ">ؤ</button>
+              <button class="key" data-char="ر">ر</button>
+              <button class="key" data-char="ى">ى</button>
+              <button class="key" data-char="ة">ة</button>
+              <button class="key" data-char="و">و</button>
+              <button class="key" data-char="ز">ز</button>
+              <button class="key" data-char="ظ">ظ</button>
+              <button class="key" data-char="ذ">ذ</button>
+              <button class="key" data-char="د">د</button>
+            </div>
+            <!-- Harakat Row -->
+            <div class="keyboard-row harakat-row">
+              <button class="key harakat" data-char="َ">فَتحة</button>
+              <button class="key harakat" data-char="ُ">ضَمّة</button>
+              <button class="key harakat" data-char="ِ">كَسرة</button>
+              <button class="key harakat" data-char="ْ">سُكون</button>
+              <button class="key harakat" data-char="ّ">شَدّة</button>
+              <button class="key harakat" data-char="ً">تنوين فتح</button>
+              <button class="key harakat" data-char="ٌ">تنوين ضم</button>
+              <button class="key harakat" data-char="ٍ">تنوين كسر</button>
+            </div>
+            <!-- Control Row -->
+            <div class="keyboard-row">
+              <button class="key wide" id="keyboardBackspace">⌫ Backspace</button>
+              <button class="key wide" data-char=" ">Space</button>
+              <button class="key wide" id="keyboardClear">Clear</button>
+            </div>
+          </div>
+          <div class="keyboard-actions">
+            <button id="keyboardCancelBtn" class="secondary-btn">Cancel</button>
+            <button id="keyboardSubmitBtn" class="primary-btn">Submit</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay hidden">
